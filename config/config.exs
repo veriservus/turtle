@@ -8,7 +8,7 @@ config :scenic, :assets, module: Turtle.Assets
 # Configure the main viewport for the Scenic application
 config :turtle, :viewport,
   name: :main_viewport,
-  size: {800, 600},
+  size: {2880, 1800},
   theme: :dark,
   default_scene: Turtle.Scene.Home,
   drivers: [
