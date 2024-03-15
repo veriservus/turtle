@@ -7,9 +7,11 @@ defmodule Turtle.Draw do
 
   def draw(graph, %F{axiom: axiom, rules: rules, level: level, step_len: step_len, rot: rot, starting_pos: {x, y}}) do
     program = L.expand(axiom, rules, level)
-    Logger.info("Drawing #{program}")
 
-    do_draw(graph, step_len, rot, String.graphemes(program), {x, y, 0}, [])
+    steps = Regex.scan(~r/[A-Z\|\+\-\[\]]{1}|\d+/,program)
+    |> Enum.flat_map(&(&1))
+
+    do_draw(graph, step_len, rot, steps, {x, y, 0, 0}, [])
   end
 
   def do_draw(graph, step_len, rot, steps, pos, mem) do
@@ -18,16 +20,16 @@ defmodule Turtle.Draw do
     steps
     |> Enum.with_index(1)
     |> Enum.reduce({graph, pos, mem}, fn {step, idx}, {graph, pos, mem} ->
-      {graph, pos, mem} = case step do
-        "F" -> draw_forward(graph, pos, mem, step_len)
-        "|" -> draw_forward_custom(graph, pos, mem, step_len, idx)
-        "G" -> go_forward(graph, pos, mem, step_len)
-        "+" -> turn_right(graph, pos, mem, rot)
-        "-" -> turn_left(graph, pos, mem, rot)
-        "[" -> save_pos(graph, pos, mem)
-        "]" -> restore_pos(graph, pos, mem)
+      {graph, pos, mem} = cond do
+        step == "G"                       -> go_forward(graph, pos, mem, step_len)
+        String.match?(step, ~r/[A-Z]{1}/) -> draw_forward(graph, pos, mem, step_len)
+        step == "|"                       -> draw_forward_custom(graph, pos, mem, step_len, idx)
+        step == "+"                       -> turn_right(graph, pos, mem, rot)
+        step == "-"                       -> turn_left(graph, pos, mem, rot)
+        step == "["                       -> save_pos(graph, pos, mem)
+        step == "]"                       -> restore_pos(graph, pos, mem)
+        true                              -> handle_num(graph, pos, mem, Integer.parse(step))
       end
-      Logger.info("Step: Turtle: #{inspect(pos)}, #{inspect(mem)}")
 
       {graph, pos, mem}
     end)
@@ -35,16 +37,15 @@ defmodule Turtle.Draw do
     graph
   end
 
-  def draw_forward(graph, {x, y, r}, mem, step) do
+  def draw_forward(graph, {x, y, r, n}, mem, step) do
     x1 = x + step * :math.cos(r)
     y1 = y + step * :math.sin(r)
-    Logger.info("Drawing a line from #{inspect({x, y})} to ##{inspect({x1, y1})}")
 
     graph =
       graph
       |> line(Line.round({{x, y}, {x1, y1}}), stroke: {1, :white})
 
-    {graph, {x1, y1, r}, mem}
+    {graph, {x1, y1, r, n}, mem}
   end
 
   def draw_forward_custom(graph, pos, mem, step, idx) do
@@ -53,28 +54,30 @@ defmodule Turtle.Draw do
     draw_forward(graph, pos, mem, step)
   end
 
-  def go_forward(graph, {x, y, r}, mem, step) do
+  def go_forward(graph, {x, y, r, n}, mem, step) do
     x1 = x + step * :math.cos(r)
     y1 = y + step * :math.sin(r)
-    Logger.info("Moving turtle from #{inspect({x, y})} to ##{inspect({x1, y1})}")
 
-    {graph, {x1, y1, r}, mem}
+    {graph, {x1, y1, r, n}, mem}
   end
 
-  def turn_right(graph, {x, y, r}, mem, rot) do
-    new_r = r + rot
-    Logger.info("Rotating right from #{r} to #{new_r}")
-    {graph, {x, y, new_r}, mem}
+  def turn_right(graph, {x, y, r, n}, mem, rot) do
+    new_r = case n do
+      0 -> r + rot
+      _ -> r + rot * n
+    end
+    {graph, {x, y, new_r, 0}, mem}
   end
 
-  def turn_left(graph, {x, y, r}, mem, rot) do
-    new_r = r - rot
-    Logger.info("Rotating left from #{r} to #{new_r}")
-    {graph, {x, y, new_r}, mem}
+  def turn_left(graph, {x, y, r, n}, mem, rot) do
+    new_r = case n do
+      0 -> r - rot
+      _ -> r - rot * n
+    end
+    {graph, {x, y, new_r, 0}, mem}
   end
 
   def save_pos(graph, pos, mem) do
-    Logger.info("Pushing pos #{inspect(pos)} to memory")
     {graph, pos, [pos | mem]}
   end
 
@@ -84,7 +87,14 @@ defmodule Turtle.Draw do
   end
 
   def restore_pos(graph, _pos, [old_pos|mem]) do
-    Logger.info("Popping pos #{inspect(old_pos)} from memory")
     {graph, old_pos, mem}
+  end
+
+  def handle_num(graph, pos, mem, :error) do
+    {graph, pos, mem}
+  end
+
+  def handle_num(grap, {x, y, r, _n}, mem, {n, _}) do
+    {grap, {x, y, r, n}, mem}
   end
 end

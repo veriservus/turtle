@@ -10,21 +10,30 @@ defmodule Turtle.Scene.Home do
     {w, h} = scene.viewport.size
 
     # f = F.carpet()
-    f = F.tree()
+    # f = F.tree()
+    # f = F.penrose_flake()
+    # f = F.penrose_tile()
+    # f = F.sierpinski()
+    f = F.dragon_curve()
 
     half_w = div(w,2)
     half_h = div(h,2)
 
+    quater_w = div(w,4)
+    quater_h = div(h,4)
+
     x = case f.starting_pos do
-      {:min, _} -> 0
-      {:max, _} -> w
-      {:half, _} -> half_w
+      {:min, _}    -> 0
+      {:max, _}    -> w
+      {:half, _}   -> half_w
+      {:quater, _} -> quater_w
     end
 
     y = case f.starting_pos do
-      {_, :min} -> 0
-      {_, :max} -> h
-      {_, :half} -> half_h
+      {_, :min}    -> 0
+      {_, :max}    -> h
+      {_, :half}   -> half_h
+      {_, :quater} -> quater_h
     end
 
     f = %{f | starting_pos: {x, y}, rot: to_radians(f.rot)}
